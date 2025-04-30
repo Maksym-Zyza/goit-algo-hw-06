@@ -1,5 +1,6 @@
-import networkx as nx
+import heapq
 import matplotlib.pyplot as plt
+import networkx as nx
 
 # Create a weighted undirected graph
 G = nx.Graph()
@@ -24,25 +25,56 @@ weighted_friendships = [
 for u, v, weight in weighted_friendships:
     G.add_edge(u, v, weight=weight)
 
-# Use Dijkstra's algorithm to find the shortest paths between all pairs of nodes
-shortest_paths = dict(nx.all_pairs_dijkstra_path(G, weight='weight'))
-shortest_lengths = dict(nx.all_pairs_dijkstra_path_length(G, weight='weight'))
+# Manual implementation of Dijkstra's algorithm
+def dijkstra(graph, start):
+    distances = {node: float('inf') for node in graph.nodes}
+    previous = {node: None for node in graph.nodes}
+    distances[start] = 0
+    queue = [(0, start)]
 
-# Print the shortest paths and their total weights
-print("Shortest paths using Dijkstra's algorithm:\n")
-for source in shortest_paths:
-    for target in shortest_paths[source]:
-        path = shortest_paths[source][target]
-        length = shortest_lengths[source][target]
-        print(f"{source} → {target}: path = {path}, total weight = {length}")
+    while queue:
+        current_dist, current_node = heapq.heappop(queue)
 
-# Visualize the graph with edge weights
+        if current_dist > distances[current_node]:
+            continue
+
+        for neighbor in graph.neighbors(current_node):
+            weight = graph[current_node][neighbor]['weight']
+            distance = current_dist + weight
+
+            if distance < distances[neighbor]:
+                distances[neighbor] = distance
+                previous[neighbor] = current_node
+                heapq.heappush(queue, (distance, neighbor))
+
+    # Build shortest paths from previous map
+    paths = {}
+    for node in graph.nodes:
+        path = []
+        current = node
+        while current is not None:
+            path.insert(0, current)
+            current = previous[current]
+        if distances[node] < float('inf'):
+            paths[node] = path
+        else:
+            paths[node] = []
+
+    return distances, paths
+
+# Compute all pairs shortest paths
+print("Shortest paths using custom Dijkstra's algorithm:\n")
+for source in G.nodes:
+    distances, paths = dijkstra(G, source)
+    for target in G.nodes:
+        if source != target:
+            print(f"{source} → {target}: path = {paths[target]}, total weight = {distances[target]}")
+
+# Visualize the graph
 plt.figure(figsize=(10, 7))
-pos = nx.spring_layout(G, seed=42)  # Position layout for consistent graph appearance
-nx.draw(
-    G, pos, with_labels=True, node_color="lightgreen",
-    node_size=600, font_size=10, edge_color="gray"
-)
+pos = nx.spring_layout(G, seed=42)
+nx.draw(G, pos, with_labels=True, node_color="lightgreen",
+        node_size=600, font_size=10, edge_color="gray")
 edge_labels = nx.get_edge_attributes(G, 'weight')
 nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_color='black')
 plt.title("Weighted Social Network Graph")
